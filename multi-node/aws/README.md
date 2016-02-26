@@ -20,7 +20,6 @@ Run the `./build` script to compile `kube-aws` locally.
 
 This depends on having:
 * golang >= 1.5
-* glide package manager
 
 The compiled binary will be available at `./bin/kube-aws`.
 
@@ -28,7 +27,7 @@ The compiled binary will be available at `./bin/kube-aws`.
 ```sh
 $ mkdir my-cluster
 $ cd ./my-cluster
-$ kube-aws init --cluster-name=my-cluster-name --external-dns-name=my-cluster-endpoint --region=us-west-1 --key-name=key-pair-name
+$ kube-aws init --cluster-name=my-cluster-name --external-dns-name=my-cluster-endpoint --region=us-west-1 --availability-zone=us-west-1c --key-name=key-pair-name
 ```
 
 There will now be a ./cluster.yaml file in the asset directory.
@@ -38,13 +37,28 @@ There will now be a ./cluster.yaml file in the asset directory.
 ```sh
 $ kube-aws render
 ```
-You now have a default-configured cluster that is ready to launch.
+This generates the default set of cluster assets in your asset directory. These assets are templates and credentials that are used to create, update and interact with your Kubernetes cluster.
 
-You can now customize your cluster by editing files:
-* ./cluster.yaml (common case)
-* `cloud-config/` directory (userdata files)
-* stack-template.json
-* `credentials/` directory
+You can now customize your cluster by editing asset files:
+
+* **./cluster.yaml**
+
+  This is the configuration file for your cluster. It contains the configuration parameters that are templated into your userdata and cloudformation stack.
+
+* **./cloud-config/**
+
+  * `./cloud-config-worker`
+  * `./cloud-config-controller`
+
+  This directory contains the [cloud-init](https://github.com/coreos/coreos-cloudinit) cloud-config userdata files. The CoreOS operating system supports automated provisioning via cloud-config files, which describe the various files, scripts and systemd actions necessary to produce a working cluster machine. These files are templated with your cluster configuration parameters and embedded into the cloudformation stack template.
+
+* **./stack-template.json**
+
+  This file describes the [AWS cloudformation](https://aws.amazon.com/cloudformation/) stack which encompasses all the AWS resources associated with your cluster. This JSON document is temlated with configuration parameters, we well as the encoded userdata files.
+
+* **credentials/**
+
+  This directory contains the **unencrypted** TLS assets for your cluster, along with a pre-configured `kubeconfig` file which provides access to your cluster api via kubectl.
 
 You can also now check the `./my-cluster` asset directory into version control if you desire. The contents of this directory are your reproducible cluster assets. Please take care not to commit the `./my-cluster/credentials` directory, as it contains your TLS secrets. If you're using git, the `credentials` directory will already be ignored for you.
 
@@ -70,7 +84,7 @@ This command can take a while.
 $ kubectl --kubeconfig=./credentials/kubeconfig get nodes
 ```
 
-It can take some time after `kube-aws up` completes before the cluster is available. Until then, you'll get a `connection refused` error.
+It can take some time after `kube-aws up` completes before the cluster is available. Until then, you will have a `connection refused` error.
 
 ## Update the cluster
 
