@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/coreos/coreos-kubernetes/multi-node/aws/pkg/coreosutil"
 )
 
