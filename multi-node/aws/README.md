@@ -86,25 +86,6 @@ $ kubectl --kubeconfig=./credentials/kubeconfig get nodes
 
 It can take some time after `kube-aws up` completes before the cluster is available. Until then, you will have a `connection refused` error.
 
-## Update the cluster
-
-After modifying your `cluster.yaml` file (or any of the other asset files), you can attempt to update the cloudformation stack.
-
-*Caveats*
-* updates that involve the controller will wipe-away etcd state, which in turn will wipe out kubernetes cluster state.
-* updates do not currently succeed if you change some of the "physical" networking options. (vpcCidr is an example).
-* the update procedure involves replacing ec2 instances without coordinating with the Kubernetes apiserver. This can (and probably will) produce cluster downtime
-
-```sh
-$ kube-aws up --update
-```
-
-### Updating SSL assets
-
-* Create a temporary directory and run `kube-aws render`.
-* Copy the `./credentials` directory to your "real" assets directory (overwriting the original `credentials` directory)
-* Run `kube-aws up --update` in the "real" assets directory. This will propagate the newly generated TLS assets to your cluster.
-
 ### Useful Resources
 
 The following links can be useful for development:
