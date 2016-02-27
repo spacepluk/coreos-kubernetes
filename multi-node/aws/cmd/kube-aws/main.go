@@ -15,7 +15,7 @@ var (
 	}
 )
 
-const ConfigPath = "./cluster.yaml"
+const configPath = "cluster.yaml"
 
 func main() {
 	cmdRoot.Execute()

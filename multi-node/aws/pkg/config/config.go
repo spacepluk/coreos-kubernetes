@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	credentialsDir = "./credentials"
-	userDataDir    = "./userdata"
+	credentialsDir = "credentials"
+	userDataDir    = "userdata"
 )
 
 func NewDefaultConfig() *Config {
@@ -182,7 +182,7 @@ func (cfg *Config) GenerateDefaultAssets() error {
 }
 
 func (cfg *Config) WriteAssetsToFiles() error {
-	gitIgnorePath := "./.gitignore"
+	gitIgnorePath := ".gitignore"
 	if err := ioutil.WriteFile(gitIgnorePath, []byte("/credentials/*.pem\n"), 0600); err != nil {
 		return fmt.Errorf("error writing .gitignore file %s: %v", gitIgnorePath, err)
 	}
@@ -205,7 +205,11 @@ func (cfg *Config) WriteAssetsToFiles() error {
 		return err
 	}
 
-	if err := cfg.StackTemplate.WriteToFile("./"); err != nil {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting working directory: %v", err)
+	}
+	if err := cfg.StackTemplate.WriteToFile(wd); err != nil {
 		return err
 	}
 
@@ -225,7 +229,12 @@ func (cfg *Config) ReadAssetsFromFiles() error {
 		return err
 	}
 
-	if err := cfg.StackTemplate.ReadFromFile("./"); err != nil {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting working directory: %v", err)
+	}
+
+	if err := cfg.StackTemplate.ReadFromFile(wd); err != nil {
 		return err
 	}
 

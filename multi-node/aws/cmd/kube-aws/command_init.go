@@ -57,9 +57,9 @@ func runCmdInit(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	out, err := os.OpenFile(ConfigPath, os.O_CREATE|os.O_WRONLY, 0600)
+	out, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		stderr("Error opening %s : %v", ConfigPath, err)
+		stderr("Error opening %s : %v", configPath, err)
 		os.Exit(1)
 	}
 	defer out.Close()
@@ -68,5 +68,5 @@ func runCmdInit(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Edit %s to parameterize the cluster. Then use the \"kube-aws render\" command to render the stack template\n", ConfigPath)
+	fmt.Printf("Edit %s to parameterize the cluster. Then use the \"kube-aws render\" command to render the stack template\n", configPath)
 }

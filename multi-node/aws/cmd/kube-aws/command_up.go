@@ -31,7 +31,7 @@ func init() {
 }
 
 func runCmdUp(cmd *cobra.Command, args []string) {
-	cfg, err := config.NewConfigFromFile(ConfigPath)
+	cfg, err := config.NewConfigFromFile(configPath)
 	if err != nil {
 		stderr("Unable to load cluster config: %v", err)
 		os.Exit(1)
@@ -47,7 +47,7 @@ func runCmdUp(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if upOpts.export {
-		templatePath := fmt.Sprintf("./%s.stack-template.json", cfg.ClusterName)
+		templatePath := fmt.Sprintf("%s.stack-template.json", cfg.ClusterName)
 		fmt.Printf("Exporting %s\n", templatePath)
 		if err := ioutil.WriteFile(templatePath, cfg.StackTemplate.Bytes(), 0600); err != nil {
 			stderr("Error writing %s : %v", templatePath, err)

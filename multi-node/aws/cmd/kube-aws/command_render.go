@@ -22,7 +22,7 @@ func init() {
 }
 
 func runCmdRender(cmd *cobra.Command, args []string) {
-	cfg, err := config.NewConfigFromFile(ConfigPath)
+	cfg, err := config.NewConfigFromFile(configPath)
 	if err != nil {
 		stderr("Error parsing config from file: %v", err)
 		os.Exit(1)
@@ -43,5 +43,5 @@ func runCmdRender(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Edit %s and/or any of the cluster assets. Then use the \"kube-aws up\" command to create the stack\n", ConfigPath)
+	fmt.Printf("Edit %s and/or any of the cluster assets. Then use the \"kube-aws up\" command to create the stack\n", configPath)
 }

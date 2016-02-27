@@ -28,7 +28,7 @@ func init() {
 }
 
 func runCmdValidate(cmd *cobra.Command, args []string) {
-	cfg, err := config.NewConfigFromFile(ConfigPath)
+	cfg, err := config.NewConfigFromFile(configPath)
 	if err != nil {
 		stderr("Unable to load cluster config: %v", err)
 		os.Exit(1)
