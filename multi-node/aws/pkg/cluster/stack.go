@@ -56,7 +56,7 @@ func updateStack(svc *cloudformation.CloudFormation, stackName, stackBody string
 	updateOutput, err := svc.UpdateStack(input)
 
 	if err != nil {
-		return "", fmt.Errorf("Error updating cloudformation stack: %v", err)
+		return "", fmt.Errorf("error updating cloudformation stack: %v", err)
 	}
 
 	return updateOutput.String(), waitForStackUpdateComplete(svc, *updateOutput.StackId)
@@ -81,6 +81,10 @@ func waitForStackUpdateComplete(svc *cloudformation.CloudFormation, stackID stri
 		case cloudformation.ResourceStatusUpdateFailed, cloudformation.StackStatusUpdateRollbackComplete, cloudformation.StackStatusUpdateRollbackFailed:
 			errMsg := fmt.Sprintf("Stack status: %s : %s", statusString, aws.StringValue(resp.Stacks[0].StackStatusReason))
 			return errors.New(errMsg)
+		case cloudformation.ResourceStatusUpdateInProgress:
+			continue
+		default:
+			return fmt.Errorf("unexpected stack status: %s", statusString)
 		}
 		time.Sleep(3 * time.Second)
 	}

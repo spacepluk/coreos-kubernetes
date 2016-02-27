@@ -21,8 +21,7 @@ type TLSConfig struct {
 	AdminCert *blobutil.NamedBuffer
 	AdminKey  *blobutil.NamedBuffer
 
-	buffers        blobutil.NamedBufferList
-	credentialsDir string
+	buffers blobutil.NamedBufferList
 }
 
 func newTLSConfig() *TLSConfig {
@@ -38,8 +37,6 @@ func newTLSConfig() *TLSConfig {
 
 		AdminCert: &blobutil.NamedBuffer{Name: "admin.pem"},
 		AdminKey:  &blobutil.NamedBuffer{Name: "admin-key.pem"},
-
-		credentialsDir: credentialsDir,
 	}
 
 	tlsConfig.buffers = blobutil.NamedBufferList{

@@ -62,9 +62,9 @@ func runCmdInit(cmd *cobra.Command, args []string) {
 		stderr("Error opening %s : %v", ConfigPath, err)
 		os.Exit(1)
 	}
-
+	defer out.Close()
 	if err := cfgTemplate.Execute(out, initOpts); err != nil {
-		stderr("Error Exe default config template: %v", err)
+		stderr("Error exec-ing default config template: %v", err)
 		os.Exit(1)
 	}
 

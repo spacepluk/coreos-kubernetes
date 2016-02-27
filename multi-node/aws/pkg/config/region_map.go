@@ -50,12 +50,12 @@ func getAMI(region, channel string) (string, error) {
 	}
 
 	if regionMap[region] == nil {
-		return "", fmt.Errorf("Could not get AMI for region %s", region)
+		return "", fmt.Errorf("could not get AMI for region %s", region)
 	}
 
 	ami := regionMap[region][channel]
 	if ami == "" {
-		return "", fmt.Errorf("Could not get AMI in region %s for channel %s", region, channel)
+		return "", fmt.Errorf("could not get AMI in region %s for channel %s", region, channel)
 	}
 
 	return ami, nil

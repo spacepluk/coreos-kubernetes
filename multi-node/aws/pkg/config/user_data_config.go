@@ -53,7 +53,7 @@ func (udc *UserDataConfig) generateDefaultConfigs() error {
 		in := bytes.NewBuffer([]byte(defaultConfig.defaultTemplate))
 
 		if _, err := defaultConfig.buffer.ReadFrom(in); err != nil {
-			return fmt.Errorf("Error reading default config for %s : %v",
+			return fmt.Errorf("error reading default config for %s : %v",
 				defaultConfig.buffer.Name,
 				err,
 			)
@@ -70,7 +70,7 @@ func (udc *UserDataConfig) validate() error {
 		report, err := validate.Validate(buffer.Bytes())
 
 		if err != nil {
-			return fmt.Errorf("Cloud-config %s could not be parsed: %v",
+			return fmt.Errorf("cloud-config %s could not be parsed: %v",
 				buffer.Name,
 				err,
 			)

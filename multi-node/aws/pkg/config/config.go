@@ -184,12 +184,12 @@ func (cfg *Config) GenerateDefaultAssets() error {
 func (cfg *Config) WriteAssetsToFiles() error {
 	gitIgnorePath := "./.gitignore"
 	if err := ioutil.WriteFile(gitIgnorePath, []byte("/credentials/*.pem\n"), 0600); err != nil {
-		return fmt.Errorf("Error writing .gitignore file %s: %v", gitIgnorePath, err)
+		return fmt.Errorf("error writing .gitignore file %s: %v", gitIgnorePath, err)
 	}
 
 	for _, dir := range []string{credentialsDir, userDataDir} {
 		if err := os.Mkdir(dir, 0700); err != nil {
-			return fmt.Errorf("Error creating directory %s : %v", dir, err)
+			return fmt.Errorf("error creating directory %s : %v", dir, err)
 		}
 	}
 
@@ -295,7 +295,7 @@ func newConfigFromBytes(d []byte) (*Config, error) {
 
 	var err error
 	if out.AMI, err = getAMI(out.Region, out.ReleaseChannel); err != nil {
-		return nil, fmt.Errorf("Error getting region map: %v", err)
+		return nil, fmt.Errorf("error getting region map: %v", err)
 	}
 
 	return out, nil

@@ -62,12 +62,12 @@ func (c *Cluster) getStackBody() (string, error) {
 	//Minify the JSON
 	stackHolder := &map[string]interface{}{}
 	if err := json.Unmarshal(c.cfg.StackTemplate.Bytes(), stackHolder); err != nil {
-		return "", fmt.Errorf("Error unmarshalling stack json : %v", err)
+		return "", fmt.Errorf("error unmarshalling stack json : %v", err)
 	}
 
 	miniStackBody, err := json.Marshal(stackHolder)
 	if err != nil {
-		return "", fmt.Errorf("Error marshalling stack json : %v", err)
+		return "", fmt.Errorf("error marshalling stack json : %v", err)
 	}
 
 	return string(miniStackBody), nil
@@ -99,7 +99,9 @@ func (c *Cluster) Update() error {
 
 	report, err := updateStack(cloudformation.New(session.New(c.aws)), c.stackName(), stackBody)
 
-	fmt.Printf("Update stack: %s\n", report)
+	if report != "" {
+		fmt.Printf("Update stack: %s\n", report)
+	}
 	return err
 }
 

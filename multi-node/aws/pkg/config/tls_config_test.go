@@ -56,7 +56,7 @@ func TestTLSEncoding(t *testing.T) {
 
 		gzipReader.Close()
 
-		if bytes.Compare(decoded.Bytes(), referenceBytes) != 0 {
+		if !bytes.Equal(decoded.Bytes(), referenceBytes) {
 			t.Logf("decoded:\n%s\n\n", decoded.String())
 			t.Logf("reference:\n%s\n\n", referenceBytes)
 			t.Errorf("Decoded bytes differ for %s", buffer.Name)

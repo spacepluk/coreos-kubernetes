@@ -54,7 +54,7 @@ func runCmdUp(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 		fmt.Printf("BEWARE: %s contains your TLS secrets!\n", templatePath)
-		os.Exit(0)
+		return
 	}
 	cluster := cluster.New(cfg, upOpts.awsDebug)
 

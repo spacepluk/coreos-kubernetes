@@ -16,10 +16,15 @@ var (
 		Long:  ``,
 		Run:   runCmdValidate,
 	}
+
+	validateOpts = struct {
+		awsDebug bool
+	}{}
 )
 
 func init() {
 	cmdRoot.AddCommand(cmdValidate)
+	cmdUp.Flags().BoolVar(&validateOpts.awsDebug, "aws-debug", false, "Log debug information from aws-sdk-go library")
 }
 
 func runCmdValidate(cmd *cobra.Command, args []string) {
@@ -39,7 +44,7 @@ func runCmdValidate(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	cluster := cluster.New(cfg, upOpts.awsDebug)
+	cluster := cluster.New(cfg, validateOpts.awsDebug)
 
 	report, err := cluster.ValidateStack()
 
@@ -50,7 +55,6 @@ func runCmdValidate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		stderr("Error creating cluster: %v", err)
 		os.Exit(1)
-	} else {
-		fmt.Printf("Validation OK!\n")
 	}
+	fmt.Printf("Validation OK!\n")
 }
