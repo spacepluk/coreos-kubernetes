@@ -82,11 +82,11 @@ func waitForStackUpdateComplete(svc *cloudformation.CloudFormation, stackID stri
 			errMsg := fmt.Sprintf("Stack status: %s : %s", statusString, aws.StringValue(resp.Stacks[0].StackStatusReason))
 			return errors.New(errMsg)
 		case cloudformation.ResourceStatusUpdateInProgress:
+			time.Sleep(3 * time.Second)
 			continue
 		default:
 			return fmt.Errorf("unexpected stack status: %s", statusString)
 		}
-		time.Sleep(3 * time.Second)
 	}
 }
 
