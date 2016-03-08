@@ -1,15 +1,18 @@
 package config
 
+//go:generate go run templates_gen.go
+//go:generate gofmt -w templates.go
+
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
-	"os"
+	"text/template"
 
-	"github.com/coreos/coreos-kubernetes/multi-node/aws/pkg/blobutil"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -17,8 +20,8 @@ const (
 	userDataDir    = "userdata"
 )
 
-func NewDefaultConfig() *Config {
-	return &Config{
+func newDefaultCluster() *Cluster {
+	return &Cluster{
 		ClusterName:              "kubernetes",
 		ReleaseChannel:           "alpha",
 		VPCCIDR:                  "10.0.0.0/16",
@@ -34,15 +37,25 @@ func NewDefaultConfig() *Config {
 		WorkerCount:              1,
 		WorkerInstanceType:       "m3.medium",
 		WorkerRootVolumeSize:     30,
-
-		TLSConfig:     newTLSConfig(),
-		UserData:      newUserDataConfig(),
-		KubeConfig:    &blobutil.NamedBuffer{Name: "kubeconfig"},
-		StackTemplate: &blobutil.NamedBuffer{Name: "stack-template.json"},
 	}
 }
 
-type Config struct {
+func ClusterFromFile(filename string) (*Cluster, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	c := newDefaultCluster()
+	if err := yaml.Unmarshal(data, c); err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %v", filename, err)
+	}
+	if err := c.valid(); err != nil {
+		return nil, fmt.Errorf("%s is invalid: %v", filename, err)
+	}
+	return c, nil
+}
+
+type Cluster struct {
 	ClusterName              string `yaml:"clusterName"`
 	ExternalDNSName          string `yaml:"externalDNSName"`
 	KeyName                  string `yaml:"keyName"`
@@ -63,21 +76,100 @@ type Config struct {
 	KubernetesServiceIP      string `yaml:"kubernetesServiceIP"`
 	DNSServiceIP             string `yaml:"dnsServiceIP"`
 	K8sVer                   string `yaml:"kubernetesVersion"`
-
-	//Calculated fields
-	APIServers        string `yaml:"-"`
-	SecureAPIServers  string `yaml:"-"`
-	ETCDEndpoints     string `yaml:"-"`
-	APIServerEndpoint string `yaml:"-"`
-	AMI               string `yaml:"-"`
-	//Subconfig
-	TLSConfig     *TLSConfig            `yaml:"-"`
-	UserData      *UserDataConfig       `yaml:"-"`
-	KubeConfig    *blobutil.NamedBuffer `yaml:"-"`
-	StackTemplate *blobutil.NamedBuffer `yaml:"-"`
 }
 
-func (cfg *Config) valid() error {
+func (c Cluster) Config(tlsConfig *RawTLSAssets) (*Config, error) {
+	config := Config{Cluster: c}
+	config.ETCDEndpoints = fmt.Sprintf("http://%s:2379", c.ControllerIP)
+	config.APIServers = fmt.Sprintf("http://%s:8080", c.ControllerIP)
+	config.SecureAPIServers = fmt.Sprintf("https://%s:443", c.ControllerIP)
+	config.APIServerEndpoint = fmt.Sprintf("https://%s", c.ExternalDNSName)
+
+	compact, err := tlsConfig.Compact()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to compress TLS assets: %v", err)
+	}
+	config.TLSConfig = compact
+
+	return &config, nil
+}
+
+type StackTemplateOptions struct {
+	TLSAssetsDir          string
+	ControllerTmplFile    string
+	WorkerTmplFile        string
+	StackTemplateTmplFile string
+}
+
+func (c Cluster) RenderStackTemplate(opts StackTemplateOptions) ([]byte, error) {
+	assets, err := ReadTLSAssets(opts.TLSAssetsDir)
+	if err != nil {
+		return nil, err
+	}
+	config, err := c.Config(assets)
+	if err != nil {
+		return nil, err
+	}
+	execute := func(filename string, data interface{}, compress bool) (string, error) {
+		raw, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return "", err
+		}
+		tmpl, err := template.New(filename).Parse(string(raw))
+		if err != nil {
+			return "", err
+		}
+		var buff bytes.Buffer
+		if err := tmpl.Execute(&buff, data); err != nil {
+			return "", err
+		}
+		if compress {
+			return compressData(buff.Bytes())
+		}
+		return buff.String(), nil
+	}
+
+	userDataWorker, err := execute(opts.WorkerTmplFile, config, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render worker cloud config: %v", err)
+	}
+	userDataController, err := execute(opts.ControllerTmplFile, config, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render controller cloud config: %v", err)
+	}
+
+	data := struct {
+		*Config
+		UserDataWorker     string
+		UserDataController string
+	}{config, userDataWorker, userDataController}
+
+	rendered, err := execute(opts.StackTemplateTmplFile, data, false)
+	if err != nil {
+		return nil, err
+	}
+	// minify JSON
+	var buff bytes.Buffer
+	if err := json.Compact(&buff, []byte(rendered)); err != nil {
+		return nil, err
+	}
+	return buff.Bytes(), nil
+}
+
+type Config struct {
+	Cluster
+
+	ETCDEndpoints     string
+	APIServers        string
+	SecureAPIServers  string
+	APIServerEndpoint string
+	AMI               string
+
+	// Encoded TLS assets
+	TLSConfig *CompactTLSAssets
+}
+
+func (cfg Cluster) valid() error {
 	if cfg.ExternalDNSName == "" {
 		return errors.New("externalDNSName must be set")
 	}
@@ -157,155 +249,4 @@ func (cfg *Config) valid() error {
 	}
 
 	return nil
-}
-
-func (cfg *Config) GenerateDefaultAssets() error {
-	if err := cfg.TLSConfig.generateAllTLS(cfg); err != nil {
-		return err
-	}
-
-	if err := cfg.UserData.generateDefaultConfigs(); err != nil {
-		return err
-	}
-
-	kubeConfigBuffer := bytes.NewBufferString(defaultKubeConfigTemplate)
-	if _, err := cfg.KubeConfig.ReadFrom(kubeConfigBuffer); err != nil {
-		return err
-	}
-
-	stackTemplateBuffer := bytes.NewBufferString(defaultStackTemplate)
-	if _, err := cfg.StackTemplate.ReadFrom(stackTemplateBuffer); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cfg *Config) WriteAssetsToFiles() error {
-	gitIgnorePath := ".gitignore"
-	if err := ioutil.WriteFile(gitIgnorePath, []byte("/credentials/*.pem\n"), 0600); err != nil {
-		return fmt.Errorf("error writing .gitignore file %s: %v", gitIgnorePath, err)
-	}
-
-	for _, dir := range []string{credentialsDir, userDataDir} {
-		if err := os.Mkdir(dir, 0700); err != nil {
-			return fmt.Errorf("error creating directory %s : %v", dir, err)
-		}
-	}
-
-	if err := cfg.TLSConfig.buffers.WriteToFiles(credentialsDir); err != nil {
-		return err
-	}
-
-	if err := cfg.UserData.buffers.WriteToFiles(userDataDir); err != nil {
-		return err
-	}
-
-	if err := cfg.KubeConfig.WriteToFile(credentialsDir); err != nil {
-		return err
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("error getting working directory: %v", err)
-	}
-	if err := cfg.StackTemplate.WriteToFile(wd); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cfg *Config) ReadAssetsFromFiles() error {
-	if err := cfg.TLSConfig.buffers.ReadFromFiles(credentialsDir); err != nil {
-		return err
-	}
-
-	if err := cfg.UserData.buffers.ReadFromFiles(userDataDir); err != nil {
-		return err
-	}
-
-	if err := cfg.KubeConfig.ReadFromFile(credentialsDir); err != nil {
-		return err
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("error getting working directory: %v", err)
-	}
-
-	if err := cfg.StackTemplate.ReadFromFile(wd); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cfg *Config) TemplateAndEncodeAssets() error {
-
-	//Template kubeconfig
-	if err := cfg.KubeConfig.Template(cfg); err != nil {
-		return err
-	}
-
-	//Template and encode tls assets
-	if err := cfg.TLSConfig.buffers.TemplateBuffers(cfg); err != nil {
-		return err
-	}
-	if err := cfg.TLSConfig.buffers.EncodeBuffers(); err != nil {
-		return err
-	}
-
-	//Template and encode userdata assets
-	if err := cfg.UserData.buffers.TemplateBuffers(cfg); err != nil {
-		return err
-	}
-
-	if err := cfg.UserData.validate(); err != nil {
-		return fmt.Errorf("user-data validation error: %s", err)
-	}
-
-	if err := cfg.UserData.buffers.EncodeBuffers(); err != nil {
-		return err
-	}
-
-	//Template cloudformation stack
-	if err := cfg.StackTemplate.Template(cfg); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func NewConfigFromFile(loc string) (*Config, error) {
-	d, err := ioutil.ReadFile(loc)
-	if err != nil {
-		return nil, fmt.Errorf("failed reading config file: %v", err)
-	}
-
-	return newConfigFromBytes(d)
-}
-
-func newConfigFromBytes(d []byte) (*Config, error) {
-	out := NewDefaultConfig()
-	if err := yaml.Unmarshal(d, out); err != nil {
-		return nil, fmt.Errorf("failed decoding config file: %v", err)
-	}
-
-	if err := out.valid(); err != nil {
-		return nil, fmt.Errorf("config file invalid: %v", err)
-	}
-
-	//TODO: this will look different once we support multiple controllers
-	out.ETCDEndpoints = fmt.Sprintf("http://%s:2379", out.ControllerIP)
-	out.APIServers = fmt.Sprintf("http://%s:8080", out.ControllerIP)
-	out.SecureAPIServers = fmt.Sprintf("https://%s:443", out.ControllerIP)
-	out.APIServerEndpoint = fmt.Sprintf("https://%s", out.ExternalDNSName)
-
-	var err error
-	if out.AMI, err = getAMI(out.Region, out.ReleaseChannel); err != nil {
-		return nil, fmt.Errorf("error getting region map: %v", err)
-	}
-
-	return out, nil
 }
