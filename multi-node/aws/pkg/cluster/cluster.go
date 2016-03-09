@@ -103,8 +103,6 @@ func (c *Cluster) Create(stackBody string) error {
 			return fmt.Errorf("unexpected stack status: %s", statusString)
 		}
 	}
-
-	return nil
 }
 
 func (c *Cluster) Update(stackBody string) (string, error) {
