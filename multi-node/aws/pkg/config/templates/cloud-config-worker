@@ -11,8 +11,8 @@ coreos:
         - name: 40-flannel.conf
           content: |
             [Unit]
-            Requires=flanneld.service
-            After=flanneld.service
+            Wants=flanneld.service
+            ExecStartPre=systemctl is-active flanneld.service
             [Service]
             EnvironmentFile=/etc/kubernetes/cni/docker_opts_cni.env
 
@@ -74,8 +74,8 @@ coreos:
         [Unit]
         Description=Load rkt stage1 images
         Documentation=http://github.com/coreos/rkt
-        Requires=network-online.target
-        After=network-online.target
+        Wants=network-online.target
+        ExecStartPre=systemctl is-active network-online.target
         Before=rkt-api.service
         [Service]
         Type=oneshot
@@ -91,8 +91,8 @@ coreos:
       content: |
         [Unit]
         Description=Calico per-host agent
-        Requires=network-online.target
-        After=network-online.target
+        Wants=network-online.target
+        ExecStartPre=systemctl is-active network-online.target
 
         [Service]
         Slice=machine.slice
@@ -121,8 +121,8 @@ coreos:
         [Unit]
         Description=decrypt kubelet tls assets using amazon kms
         Before=kubelet.service
-        After=docker.service
-        Requires=docker.service
+        ExecStartPre=systemctl is-active docker.service
+        Wants=docker.service
 
         [Service]
         Type=oneshot
